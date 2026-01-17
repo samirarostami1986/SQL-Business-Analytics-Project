@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?><sqlb_project><db path="company.db" readonly="0" foreign_keys="1" case_sensitive_like="0" temp_store="0" wal_autocheckpoint="1000" synchronous="2"/><attached/><window><main_tabs open="structure browser pragmas query" current="3"/></window><tab_structure><column_width id="0" width="300"/><column_width id="1" width="0"/><column_width id="2" width="100"/><column_width id="3" width="1088"/><column_width id="4" width="0"/><expanded_item id="0" parent="1"/><expanded_item id="1" parent="1"/><expanded_item id="2" parent="1"/><expanded_item id="3" parent="1"/></tab_structure><tab_browse><table title="employee_projects" custom_title="0" dock_id="1" table="4,17:mainemployee_projects"/><dock_state state="000000ff00000000fd00000001000000020000024900000213fc0100000001fb000000160064006f0063006b00420072006f00770073006500310100000000000002490000012400ffffff000002490000000000000004000000040000000800000008fc00000000"/><default_encoding codec=""/><browse_table_settings><table schema="main" name="departments" show_row_id="0" encoding="" plot_x_axis="" unlock_view_pk="_rowid_" freeze_columns="0"><sort/><column_widths><column index="1" value="51"/><column index="2" value="78"/></column_widths><filter_values/><conditional_formats/><row_id_formats/><display_formats/><hidden_columns/><plot_y_axes/><global_filter/></table><table schema="main" name="employee_projects" show_row_id="0" encoding="" plot_x_axis="" unlock_view_pk="_rowid_" freeze_columns="0"><sort/><column_widths><column index="1" value="50"/><column index="2" value="65"/><column index="3" value="85"/></column_widths><filter_values/><conditional_formats/><row_id_formats/><display_formats/><hidden_columns/><plot_y_axes/><global_filter/></table></browse_table_settings></tab_browse><tab_sql><sql name="SQL 1*">-- ------------------------------------------
+--SQL-Business-Analytics-Project(SQLite)
+-- Using CTE for window functions
+-- ------------------------------------------
+
+-- 1️⃣ Employees with salary, highest first
+SELECT e.emp_id, e.name, s.salary
+FROM employees e
+JOIN salaries s ON e.emp_id = s.emp_id
+ORDER BY s.salary DESC;
+
+-- 2️⃣ Rank employees by salary across company
+WITH ranked AS (
+    SELECT e.emp_id, e.name, s.salary,
+           RANK() OVER (ORDER BY s.salary DESC) AS salary_rank
+    FROM employees e
+    JOIN salaries s ON e.emp_id = s.emp_id
+)
+SELECT *
+FROM ranked
+ORDER BY salary_rank;
+
+-- 3️⃣ Rank employees within each department
+WITH dept_ranked AS (
+    SELECT e.emp_id, e.name, d.dept_name, s.salary,
+           RANK() OVER (PARTITION BY e.dept_id ORDER BY s.salary DESC) AS dept_salary_rank
+    FROM employees e
+    JOIN salaries s ON e.emp_id = s.emp_id
+    JOIN departments d ON e.dept_id = d.dept_id
+)
+SELECT *
+FROM dept_ranked
+ORDER BY dept_name, dept_salary_rank;
+
+-- 4️⃣ Average salary per department for each employee
+WITH dept_avg AS (
+    SELECT e.emp_id, e.name, d.dept_name, s.salary,
+           AVG(s.salary) OVER (PARTITION BY e.dept_id) AS dept_avg_salary
+    FROM employees e
+    JOIN salaries s ON e.emp_id = s.emp_id
+    JOIN departments d ON e.dept_id = d.dept_id
+)
+SELECT *
+FROM dept_avg
+ORDER BY dept_name
+LIMIT 10;
+
+-- 5️⃣ Top 3 highest paid employees per department
+WITH ranked AS (
+    SELECT e.emp_id, e.name, d.dept_name, s.salary,
+           RANK() OVER (PARTITION BY e.dept_id ORDER BY s.salary DESC) AS dept_rank
+    FROM employees e
+    JOIN salaries s ON e.emp_id = s.emp_id
+    JOIN departments d ON e.dept_id = d.dept_id
+)
+SELECT *
+FROM ranked
+WHERE dept_rank &lt;= 3;
+
+-- 6️⃣ Number of employees per department
+SELECT d.dept_name, COUNT(e.emp_id) AS num_employees
+FROM employees e
+JOIN departments d ON e.dept_id = d.dept_id
+GROUP BY d.dept_name
+ORDER BY num_employees DESC;
+
+-- 7️⃣ Average and maximum salary per department
+SELECT d.dept_name, AVG(s.salary) AS avg_salary, MAX(s.salary) AS max_salary
+FROM employees e
+JOIN salaries s ON e.emp_id = s.emp_id
+JOIN departments d ON e.dept_id = d.dept_id
+GROUP BY d.dept_name
+ORDER BY avg_salary DESC;
+
+-- 8️⃣ Employees with more than 2 projects
+SELECT e.emp_id, e.name, COUNT(ep.project_id) AS num_projects
+FROM employees e
+JOIN employee_projects ep ON e.emp_id = ep.emp_id
+GROUP BY e.emp_id, e.name
+HAVING num_projects &gt; 2
+ORDER BY num_projects DESC;
+</sql><current_tab id="0"/></tab_sql></sqlb_project>
